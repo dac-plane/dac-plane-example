@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "../src/App.tsx";
-import { answerDigest } from "../src/pages/Attention.tsx";
+import { answerDigest, changesAttention } from "../src/pages/Attention.tsx";
 import { agent, config, renderAt, tenant } from "./render.tsx";
 import { api } from "./setup.ts";
 
@@ -180,5 +180,22 @@ describe("review", () => {
     expect(sent.headers.get("if-match")).toBe('"7"');
     expect(await sent.json()).toEqual({ revision_id: revision, disposition: "accept" });
     expect(await screen.findByText("succeeded")).toBeDefined();
+  });
+});
+
+describe("changesAttention", () => {
+  const event = (record_kind: string, to_state: string) =>
+    ({ record_kind, to_state }) as Parameters<typeof changesAttention>[0];
+
+  it("refreshes on an attention request's change and on work that starts waiting", () => {
+    expect(changesAttention(event("attention_request", "decided"))).toBe(true);
+    // dac-plane announces a new request only through this move.
+    expect(changesAttention(event("attempt", "waiting_input"))).toBe(true);
+    expect(changesAttention(event("task", "waiting_input"))).toBe(true);
+  });
+
+  it("ignores events that cannot change what is waiting", () => {
+    expect(changesAttention(event("budget", "open"))).toBe(false);
+    expect(changesAttention(event("attempt", "executing"))).toBe(false);
   });
 });

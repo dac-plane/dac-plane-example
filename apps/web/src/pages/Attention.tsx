@@ -2,7 +2,7 @@ import type { Schemas } from "@dac-plane-example/surface-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
-import { APIError, streamPath, surface, unwrap, useConfig } from "../api.ts";
+import { APIError, type Event, streamPath, surface, unwrap, useConfig } from "../api.ts";
 import {
   formatTime,
   ProblemNotice,
@@ -29,6 +29,16 @@ export async function answerDigest(text: string): Promise<string> {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   const hex = [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
   return `sha256:${hex}`;
+}
+
+/**
+ * Whether a tenant event can change what is waiting on the owner. dac-plane
+ * v0.3.0 emits no event when it creates an attention request, only when one
+ * changes state; its attempt and task move to waiting_input at the same time,
+ * so that move is taken as the signal for a new request.
+ */
+export function changesAttention(event: Event): boolean {
+  return event.record_kind === "attention_request" || event.to_state === "waiting_input";
 }
 
 // ConnectorProposal shows the exact tool call an approval would let through.
@@ -204,11 +214,9 @@ export function AttentionPage() {
         }),
       ).attention,
   });
-  // The list is read again whenever an attention request changes anywhere
-  // in the tenant.
   const stream = useEventStream(tenant ? streamPath(tenant) : undefined, {
     onEvent: (event) => {
-      if (event.record_kind === "attention_request") {
+      if (changesAttention(event)) {
         void queryClient.invalidateQueries({ queryKey: ["attention"] });
       }
     },
