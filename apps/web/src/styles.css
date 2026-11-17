@@ -310,3 +310,16 @@ button:disabled {
     margin-top: 8px;
   }
 }
+
+.proposal {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+
+.proposal pre {
+  margin: 8px 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}

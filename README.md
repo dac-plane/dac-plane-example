@@ -19,9 +19,17 @@ Tracked by [dac-plane#97](https://github.com/dac-plane/dac-plane/issues/97). The
 - The web app:
   - **Agents:** list, create, revise and retire them.
   - **Tasks:** delegate a task to an agent, and see every task with its state, kept live from the event stream.
-  - **A task:** its state, attempt, results and events as they happen, and cancel it.
-  - **Attention:** a list of what is waiting on you; deciding comes next.
+  - **A task:** its state, attempt and events as they happen; cancel it; review its result: accept, reject, or
+    send it back for changes.
+  - **Attention:** what is waiting on you, live. Approve an action once or always, or deny it, after seeing the
+    exact connector call it would allow. Answer a question.
   - Every refusal shows dac-plane's own problem: status, title and detail.
+
+What dac-plane v0.3.0 does not offer yet, and the app says so where it matters: artifact content
+([dac-plane#153](https://github.com/dac-plane/dac-plane/issues/153)), a task list
+([#155](https://github.com/dac-plane/dac-plane/issues/155)), a provider list
+([#156](https://github.com/dac-plane/dac-plane/issues/156)), and the words of a question and of its answer
+([#157](https://github.com/dac-plane/dac-plane/issues/157)).
 
 The stages that follow are listed in the plan.
 
