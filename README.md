@@ -33,6 +33,12 @@ What dac-plane v0.3.0 does not offer yet, and the app says so where it matters: 
 
 The stages that follow are listed in the plan.
 
+## Run it
+
+`just up` starts the pinned dac-plane release with real providers and the application beside it, from the
+release's published Compose bundle and images. [Run the example beside dac-plane](docs/setup.md) is the guide,
+including the provider keys it needs.
+
 ## Develop
 
 You need [mise](https://mise.jdx.dev), which installs the pinned Node, pnpm and just from `mise.toml`.

@@ -35,6 +35,7 @@ describe("loadConfig", () => {
       "must be an https URL",
     ],
     ["a missing secret file", { DAC_CLIENT_SECRET_FILE: join(dir, "absent") }, "ENOENT"],
+    ["a relative web root", { WEB_ROOT: "apps/web/dist" }, "WEB_ROOT must be an absolute path"],
   ])("refuses %s", (_name, override, message) => {
     expect(() => loadConfig({ ...env, ...override })).toThrow(message);
   });

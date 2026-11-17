@@ -16,6 +16,7 @@ const app = await buildApp({
   surfaceURL: config.surfaceURL,
   tenant: config.tenant,
   defaults: config.defaults,
+  ...(config.webRoot ? { webRoot: config.webRoot } : {}),
   fetch,
   tokens: new ClientCredentials({
     tokenURL: config.tokenURL,

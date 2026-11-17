@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { isAbsolute } from "node:path";
 
 /** Where one origin is dialled instead, like curl's --connect-to. */
 export interface ConnectTarget {
@@ -27,6 +28,8 @@ export interface Config {
    * (dac-plane#156), so the operator names the ones provisioned for the tenant.
    */
   defaults: { runtimeProviderID?: string; environmentProviderID?: string };
+  /** The built web app's directory, served beside the API; unset in development, where Vite serves it. */
+  webRoot?: string;
 }
 
 type Env = Record<string, string | undefined>;
@@ -116,6 +119,10 @@ export function loadConfig(env: Env = process.env): Config {
     throw new Error("DAC_TENANT must be a UUID");
   }
   const caFile = env.DAC_CA_FILE?.trim();
+  const webRoot = env.WEB_ROOT?.trim();
+  if (webRoot && !isAbsolute(webRoot)) {
+    throw new Error("WEB_ROOT must be an absolute path");
+  }
   return {
     host: env.HOST?.trim() || "127.0.0.1",
     port: port(env.PORT?.trim() || "3000", "PORT"),
@@ -131,5 +138,6 @@ export function loadConfig(env: Env = process.env): Config {
       ...withValue("runtimeProviderID", optionalUUID(env, "DAC_RUNTIME_PROVIDER_ID")),
       ...withValue("environmentProviderID", optionalUUID(env, "DAC_ENVIRONMENT_PROVIDER_ID")),
     },
+    ...(webRoot ? { webRoot } : {}),
   };
 }

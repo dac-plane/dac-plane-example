@@ -41,5 +41,25 @@ contract-check:
 lint-workflows:
     actionlint
 
+# Start the pinned dac-plane release and the application beside it (docs/setup.md).
+up:
+    deploy/stack.sh up
+
+# Stop the stack, keeping its data.
+down:
+    deploy/stack.sh down
+
+# Run a docker compose command against the stack, such as `just stack ps` or `just stack logs example`.
+stack *args:
+    deploy/stack.sh compose {{ args }}
+
+# Build the application image.
+image:
+    docker build -t dac-plane-example:dev .
+
+# Fail if the Compose overlay no longer composes with the pinned dac-plane release.
+compose-check:
+    deploy/stack.sh check
+
 # The local equivalent of the CI gate.
-ci: lint lint-workflows contract-check typecheck test build
+ci: lint lint-workflows contract-check typecheck test build compose-check image

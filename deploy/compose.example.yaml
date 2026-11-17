@@ -1,0 +1,44 @@
+# The application beside a released dac-plane stack. It is an overlay on the
+# release's compose.yaml, compose.pilot.yaml and compose.keycloak.yaml, read
+# with the same env file (pilot.env), so it joins that stack's network and
+# reaches dac-plane and Keycloak by their service names over TLS.
+# deploy/stack.sh supplies the settings below; docs/setup.md is the guide.
+services:
+  example:
+    image: ${DAC_EXAMPLE_IMAGE:-dac-plane-example:dev}
+    build:
+      context: ${DAC_EXAMPLE_ROOT:?set DAC_EXAMPLE_ROOT to this repository}
+    depends_on:
+      dac-plane:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      DAC_SURFACE_URL: https://dac-plane:8443
+      DAC_TENANT: ${DAC_TENANT_ID:?set DAC_TENANT_ID from pilot.ids}
+      DAC_RUNTIME_PROVIDER_ID: ${DAC_RUNTIME_PROVIDER_ID:-}
+      DAC_ENVIRONMENT_PROVIDER_ID: ${DAC_ENVIRONMENT_PROVIDER_ID:-}
+      DAC_TOKEN_URL: https://keycloak:8443/realms/dac/protocol/openid-connect/token
+      DAC_CLIENT_ID: pilot-owner
+      DAC_CLIENT_SECRET_FILE: /run/secrets/client_secret
+      DAC_CA_FILE: /run/config/ca.crt
+    secrets:
+      - source: example_client_secret
+        target: client_secret
+    configs:
+      - source: example_ca
+        target: /run/config/ca.crt
+    ports:
+      - "${DAC_EXAMPLE_BIND:-127.0.0.1}:${DAC_EXAMPLE_PORT:-3000}:3000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+secrets:
+  example_client_secret:
+    file: ${DAC_EXAMPLE_CLIENT_SECRET_FILE:?set DAC_EXAMPLE_CLIENT_SECRET_FILE to the owner client secret}
+
+configs:
+  example_ca:
+    file: ${DAC_TRUST_BUNDLE_FILE:?set DAC_TRUST_BUNDLE_FILE to the stack's CA}

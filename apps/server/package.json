@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@dac-plane-example/surface-client": "workspace:*",
+    "@fastify/static": "^10.1.10",
     "fastify": "^5.12.0",
     "undici": "^8.12.2"
   },

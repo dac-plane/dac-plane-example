@@ -83,6 +83,13 @@ Each stage is one pull request in this repository, with its own CI.
 - **The smoke test runs locally with the provider keys the pilot already uses** (Camer, E2B and its template),
   read from local files and never copied into the repository or CI. Running it in the example's CI with
   repository secrets is deferred.
+- **The deployed stack is the release's pilot profile** (`compose.yaml`, `compose.pilot.yaml`,
+  `compose.keycloak.yaml`) with this repository's `deploy/compose.example.yaml` over it. The release's development
+  profile needs the simulator image, which dac-plane builds from source and does not publish, so it is outside the
+  boundary. The bundle and manifest are pinned by SHA-256 in `deploy/release.json`.
+- **The application signs in as the pilot's `pilot-owner` client**, bound to the tenant's owner, until users sign in
+  themselves.
+- **One image serves the API relay and the built web app**, on distroless Node 26 as a non-root user, read-only.
 
 ## Open questions
 

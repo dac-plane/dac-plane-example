@@ -2,6 +2,7 @@ import { createSurfaceClient } from "@dac-plane-example/surface-client";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import { registerProxy } from "./proxy.ts";
 import type { Fetch, TokenSource } from "./token.ts";
+import { registerWeb } from "./web.ts";
 
 export interface AppOptions {
   surfaceURL: URL;
@@ -9,6 +10,8 @@ export interface AppOptions {
   tokens: TokenSource;
   fetch: Fetch;
   defaults?: { runtimeProviderID?: string; environmentProviderID?: string };
+  /** The built web app, served beside the API when set. */
+  webRoot?: string;
   server?: FastifyServerOptions;
 }
 
@@ -50,5 +53,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   }));
 
   await registerProxy(app, options);
+  if (options.webRoot) {
+    await registerWeb(app, options.webRoot);
+  }
   return app;
 }
