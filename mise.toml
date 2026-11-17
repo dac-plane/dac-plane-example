@@ -1,0 +1,7 @@
+# Tool versions for local development and CI (jdx/mise-action reads this file).
+# Keep pnpm identical to `packageManager` in package.json.
+[tools]
+node = "26.13.0"
+pnpm = "12.17.0"
+just = "1.57.0"
+actionlint = "1.7.12"
