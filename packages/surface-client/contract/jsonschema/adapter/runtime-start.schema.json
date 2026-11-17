@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RuntimeStart",
+  "description": "Provider-neutral start_turn arguments with an optional delegated agent's instructions, the attempt's connector gateway, prepared environment and migration recovery context.",
+  "type": "object",
+  "required": [
+    "brief"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "brief": {
+      "$ref": "../lifecycle/execution-brief.schema.json"
+    },
+    "agent": {
+      "$ref": "agent-instructions.schema.json"
+    },
+    "gateway": {
+      "$ref": "gateway-access.schema.json"
+    },
+    "environment": {
+      "$ref": "environment-reference.schema.json"
+    },
+    "recovery": {
+      "allOf": [
+        {
+          "$ref": "migration-request.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": {
+              "const": "target_started"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

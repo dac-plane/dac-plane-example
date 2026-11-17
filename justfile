@@ -29,9 +29,17 @@ build:
 dev:
     pnpm -r --parallel dev
 
+# Vendor a dac-plane release's Surface API contract and regenerate the client types.
+contract-sync release:
+    pnpm --filter @dac-plane-example/surface-client contract:sync {{ release }}
+
+# Fail if the vendored contract or the generated types differ from the pinned release.
+contract-check:
+    pnpm --filter @dac-plane-example/surface-client contract:check
+
 # Check the GitHub workflows.
 lint-workflows:
     actionlint
 
 # The local equivalent of the CI gate.
-ci: lint lint-workflows typecheck test build
+ci: lint lint-workflows contract-check typecheck test build

@@ -1,0 +1,21 @@
+{
+  "name": "@dac-plane-example/surface-client",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run",
+    "contract:sync": "node scripts/contract.ts sync",
+    "contract:check": "node scripts/contract.ts check"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "vitest": "^5.0.0"
+  }
+}

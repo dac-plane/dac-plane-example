@@ -35,6 +35,9 @@ jobs:
       - name: Lint workflows
         run: just lint-workflows
 
+      - name: Check the contract against its release
+        run: just contract-check
+
       - name: Typecheck
         run: just typecheck
 

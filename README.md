@@ -12,14 +12,16 @@ Tracked by [dac-plane#97](https://github.com/dac-plane/dac-plane/issues/97). The
 
 ## Status
 
-Scaffold only: a server with a health check and a web page with a heading. The stages that follow are listed
-in the plan.
+A server with a health check, a web page with a heading, and a typed Surface API client generated from the
+dac-plane v0.3.0 contract. The stages that follow are listed in the plan.
 
 ## Layout
 
 ```text
 apps/server/   Node and Fastify: holds dac-plane tokens and relays the API to the browser
 apps/web/      React and Vite: the user interface
+packages/surface-client/
+               the Surface API contract vendored from a dac-plane release, and the client generated from it
 tasks/plan.md  the plan for the work in progress
 ```
 
@@ -33,6 +35,16 @@ just install   # dependencies, exactly as locked
 just dev       # the server on 127.0.0.1:3000 and the web app on Vite's port
 just ci        # lint, typecheck, test and build, as CI runs them
 ```
+
+## Move to a new dac-plane release
+
+```sh
+just contract-sync v0.4.0   # vendor that release's contract, record its SHA-256, regenerate the types
+just ci                     # the type checker shows what the new contract changed
+```
+
+`just contract-check`, part of `just ci` and CI, downloads the pinned release asset, refuses it unless its
+SHA-256 matches the pin, and fails if any vendored file or the generated types differ from it.
 
 ## License
 
