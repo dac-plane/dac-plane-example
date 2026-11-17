@@ -22,6 +22,11 @@ export interface Config {
   ca?: string;
   /** `host:port` of an origin mapped to the address actually dialled. */
   connectTo: Map<string, ConnectTarget>;
+  /**
+   * Providers a new agent defaults to. The Surface API cannot list providers
+   * (dac-plane#156), so the operator names the ones provisioned for the tenant.
+   */
+  defaults: { runtimeProviderID?: string; environmentProviderID?: string };
 }
 
 type Env = Record<string, string | undefined>;
@@ -82,6 +87,15 @@ export function parseConnectTo(raw: string | undefined): Map<string, ConnectTarg
   return map;
 }
 
+function optionalUUID(env: Env, name: string): string | undefined {
+  const value = env[name]?.trim();
+  if (!value) return undefined;
+  if (!uuid.test(value)) {
+    throw new Error(`${name} must be a UUID`);
+  }
+  return value;
+}
+
 // readSecret reads a secret from a file, so it never sits in the environment
 // or a process listing.
 function readSecret(env: Env, name: string): string {
@@ -92,6 +106,9 @@ function readSecret(env: Env, name: string): string {
   }
   return value;
 }
+
+const withValue = <K extends string>(key: K, value: string | undefined) =>
+  value === undefined ? {} : ({ [key]: value } as Record<K, string>);
 
 export function loadConfig(env: Env = process.env): Config {
   const tenant = required(env, "DAC_TENANT");
@@ -110,5 +127,9 @@ export function loadConfig(env: Env = process.env): Config {
     scope: env.DAC_SCOPE?.trim() || "dac-plane-surface",
     ...(caFile ? { ca: readFileSync(caFile, "utf8") } : {}),
     connectTo: parseConnectTo(env.DAC_CONNECT_TO),
+    defaults: {
+      ...withValue("runtimeProviderID", optionalUUID(env, "DAC_RUNTIME_PROVIDER_ID")),
+      ...withValue("environmentProviderID", optionalUUID(env, "DAC_ENVIRONMENT_PROVIDER_ID")),
+    },
   };
 }

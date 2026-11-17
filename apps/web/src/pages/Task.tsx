@@ -1,0 +1,204 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Link, useParams } from "react-router";
+import { type Event, streamPath, surface, unwrap, useConfig, versioned } from "../api.ts";
+import {
+  formatTime,
+  ProblemNotice,
+  Section,
+  StateBadge,
+  StreamIndicator,
+  shortID,
+  useCommandKey,
+} from "../components.tsx";
+import { useEventStream } from "../events.ts";
+
+const terminal = new Set(["succeeded", "failed", "rejected", "cancelled"]);
+
+function TaskDetail({ tenant, id }: { tenant: string; id: string }) {
+  const queryClient = useQueryClient();
+  const cancel = useCommandKey();
+  const [events, setEvents] = useState<Event[]>([]);
+
+  const task = useQuery({
+    queryKey: ["task-versioned", tenant, id],
+    queryFn: async () =>
+      versioned(
+        await surface.GET("/v1/tenants/{tenant}/tasks/{task}", {
+          params: { path: { tenant, task: id } },
+        }),
+      ),
+  });
+  const agents = useQuery({
+    queryKey: ["agents", tenant],
+    queryFn: async () =>
+      unwrap(await surface.GET("/v1/tenants/{tenant}/agents", { params: { path: { tenant } } }))
+        .agents,
+  });
+
+  // Every event changes the record, so the task is read again; the stream
+  // says that something changed, the read says what it is now.
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["task-versioned", tenant, id] });
+  const stream = useEventStream(streamPath(tenant, id), {
+    onEvent: (event) => {
+      setEvents((current) => [...current, event]);
+      void refresh();
+    },
+    onReset: () => {
+      setEvents([]);
+      void refresh();
+    },
+  });
+
+  const cancelTask = useMutation({
+    mutationFn: async () => {
+      if (!task.data) throw new Error("The task has not been read yet.");
+      return unwrap(
+        await surface.POST("/v1/tenants/{tenant}/tasks/{task}/cancel", {
+          params: {
+            path: { tenant, task: id },
+            header: {
+              "Idempotency-Key": cancel.keyFor({ cancel: id }),
+              "If-Match": task.data.etag,
+            },
+          },
+          body: {},
+        }),
+      );
+    },
+    onSuccess: () => {
+      cancel.done();
+      return refresh();
+    },
+  });
+
+  if (task.error) return <ProblemNotice error={task.error} />;
+  if (!task.data) return <p className="muted">Loading task…</p>;
+
+  const view = task.data.value;
+  const { task: record, attempt } = view;
+  const agent = record.agent
+    ? agents.data?.find((a) => a.agent_id === record.agent?.agent_id)
+    : undefined;
+
+  return (
+    <>
+      <Section
+        title={record.objective ?? "Task"}
+        actions={
+          <>
+            <StateBadge state={record.state} />
+            {terminal.has(record.state) || record.state === "cancelling" ? null : (
+              <button
+                type="button"
+                className="danger"
+                disabled={cancelTask.isPending}
+                onClick={() => {
+                  if (window.confirm("Request cancellation of this task?")) cancelTask.mutate();
+                }}
+              >
+                Cancel task
+              </button>
+            )}
+          </>
+        }
+      >
+        <ProblemNotice error={cancelTask.error} />
+        <dl className="facts">
+          <dt>Agent</dt>
+          <dd>
+            {record.agent ? (
+              <>
+                {agent?.name ?? shortID(record.agent.agent_id)}{" "}
+                <span className="muted">at revision {record.agent.revision}</span>
+              </>
+            ) : (
+              <span className="muted">Submitted to providers directly</span>
+            )}
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul>
+              {(record.acceptance_criteria ?? []).map((criterion) => (
+                <li key={criterion}>{criterion}</li>
+              ))}
+            </ul>
+          </dd>
+          <dt>Attempt</dt>
+          <dd>
+            {attempt ? (
+              <>
+                #{attempt.number} <StateBadge state={attempt.state} />
+                {attempt.runtime_stopped ? <span className="muted"> · runtime stopped</span> : null}
+                {attempt.environment_stopped ? (
+                  <span className="muted"> · environment stopped</span>
+                ) : null}
+              </>
+            ) : (
+              <span className="muted">None yet</span>
+            )}
+          </dd>
+          <dt>Waiting on you</dt>
+          <dd>
+            {view.open_attention.length === 0 ? (
+              <span className="muted">Nothing</span>
+            ) : (
+              <Link to="/attention">
+                {view.open_attention.length} open attention request
+                {view.open_attention.length === 1 ? "" : "s"}
+              </Link>
+            )}
+          </dd>
+          <dt>Results</dt>
+          <dd>
+            {view.revisions.length === 0 ? (
+              <span className="muted">No result proposed yet</span>
+            ) : (
+              <ul>
+                {view.revisions.map(({ revision, reviews }) => (
+                  <li key={revision.revision_id}>
+                    Revision {revision.number}: {revision.artifact_ids.length} artifact
+                    {revision.artifact_ids.length === 1 ? "" : "s"}
+                    {reviews.length > 0 ? (
+                      <span className="muted">
+                        {" "}
+                        · reviewed: {reviews.map((r) => r.disposition).join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </dd>
+          <dt>Submitted</dt>
+          <dd>{formatTime(record.created_at)}</dd>
+        </dl>
+      </Section>
+      <Section title="Events" actions={<StreamIndicator state={stream} />}>
+        {events.length === 0 ? <p className="muted">Waiting for events…</p> : null}
+        <ol className="events">
+          {events.map((event) => (
+            <li key={event.cursor}>
+              <time className="muted">{formatTime(event.occurred_at)}</time>{" "}
+              <span className="mono">{event.record_kind.replaceAll("_", " ")}</span> {event.event}
+              {event.to_state ? (
+                <span className="muted">
+                  {" "}
+                  {event.from_state} → {event.to_state}
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      </Section>
+    </>
+  );
+}
+
+export function TaskPage() {
+  const { taskID } = useParams();
+  const config = useConfig();
+  if (config.error) return <ProblemNotice error={config.error} />;
+  if (!config.data || !taskID) return <p className="muted">Loading…</p>;
+  return <TaskDetail tenant={config.data.tenant} id={taskID} />;
+}

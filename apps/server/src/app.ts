@@ -8,6 +8,7 @@ export interface AppOptions {
   tenant: string;
   tokens: TokenSource;
   fetch: Fetch;
+  defaults?: { runtimeProviderID?: string; environmentProviderID?: string };
   server?: FastifyServerOptions;
 }
 
@@ -40,7 +41,13 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   });
 
   // What the web app needs to address the API.
-  app.get("/api/config", async () => ({ tenant: options.tenant }));
+  app.get("/api/config", async () => ({
+    tenant: options.tenant,
+    defaults: {
+      runtime_provider_id: options.defaults?.runtimeProviderID ?? null,
+      environment_provider_id: options.defaults?.environmentProviderID ?? null,
+    },
+  }));
 
   await registerProxy(app, options);
   return app;

@@ -16,7 +16,12 @@ Tracked by [dac-plane#97](https://github.com/dac-plane/dac-plane/issues/97). The
 - The server: it obtains the service principal's token and passes `/api/v1/tenants/{tenant}/...` through to the
   Surface API, including commands with their `Idempotency-Key` and `If-Match`, and the event stream with
   `Last-Event-ID`. The browser never holds a token.
-- A web page with a heading.
+- The web app:
+  - **Agents:** list, create, revise and retire them.
+  - **Tasks:** delegate a task to an agent, and see every task with its state, kept live from the event stream.
+  - **A task:** its state, attempt, results and events as they happen, and cancel it.
+  - **Attention:** a list of what is waiting on you; deciding comes next.
+  - Every refusal shows dac-plane's own problem: status, title and detail.
 
 The stages that follow are listed in the plan.
 
