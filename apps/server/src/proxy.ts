@@ -57,6 +57,15 @@ export async function registerProxy(app: FastifyInstance, options: ProxyOptions)
     );
 
     const handler = async (request: FastifyRequest, reply: FastifyReply) => {
+      // Every call here carries the owner's authority, so a page on another
+      // site must not be able to make one (CSRF; RFC 10017 requires a BFF to
+      // defend against it). Browsers state a request's origin in Fetch
+      // Metadata; clients that send none, such as curl, are not browsers.
+      const site = request.headers["sec-fetch-site"];
+      if (site !== undefined && site !== "same-origin" && site !== "none") {
+        return problem(reply, 403, "Forbidden", "Only this application's own pages may call it.");
+      }
+
       const raw = request.raw.url ?? "";
       const queryAt = raw.indexOf("?");
       const path = (queryAt < 0 ? raw : raw.slice(0, queryAt)).replace(/^\/api/, "");

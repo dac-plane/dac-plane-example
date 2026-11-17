@@ -100,6 +100,34 @@ describe("proxy", () => {
     expect(request.headers.cookie).toBeUndefined();
   });
 
+  it.each(["cross-site", "same-site"])("refuses a %s browser request", async (site) => {
+    current = await app();
+    const response = await current.inject({
+      method: "POST",
+      url: `/api/v1/tenants/${tenant}/tasks`,
+      headers: { "sec-fetch-site": site, "content-type": "text/plain" },
+      payload: "{}",
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.headers["content-type"]).toContain("application/problem+json");
+    expect(seen).toHaveLength(0);
+  });
+
+  it("passes a same-origin browser request", async () => {
+    respond = (_req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end("{}");
+    };
+    current = await app();
+    const response = await current.inject({
+      method: "GET",
+      url: `/api/v1/tenants/${tenant}/attention`,
+      headers: { "sec-fetch-site": "same-origin" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(seen).toHaveLength(1);
+  });
+
   it("passes a problem document through unchanged", async () => {
     const problem = { type: "https://dac-plane.dev/problems/stale", title: "Stale", status: 412 };
     respond = (_req, res) => {
