@@ -21,6 +21,7 @@ beforeAll(async () => {
     tokens: { token: async () => "t" },
     fetch: async () => new Response(null, { status: 599 }),
     webRoot: root,
+    allowedHosts: ["localhost:80"],
   });
 });
 

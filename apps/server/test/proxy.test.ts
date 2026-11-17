@@ -1,11 +1,15 @@
 import { createServer, type IncomingMessage, request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { FastifyInstance } from "fastify";
+import { fetch as undiciFetch } from "undici";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.ts";
+import { createDispatcher } from "../src/dispatcher.ts";
 import type { TokenSource } from "../src/token.ts";
 
 const tenant = "01a167fd-51d9-76ba-b563-496e2bd89646";
+// The Host Fastify's inject() sends.
+const allowedHosts = ["localhost:80"];
 
 interface Seen {
   method: string;
@@ -47,7 +51,7 @@ afterAll(async () => {
 const tokens = (token = "token-1"): TokenSource => ({ token: async () => token });
 
 async function app(source: TokenSource = tokens()): Promise<FastifyInstance> {
-  return buildApp({ surfaceURL: upstreamURL, tenant, tokens: source, fetch });
+  return buildApp({ surfaceURL: upstreamURL, tenant, tokens: source, fetch, allowedHosts });
 }
 
 let current: FastifyInstance | undefined;
@@ -74,6 +78,7 @@ describe("proxy", () => {
       method: "POST",
       url: `/api/v1/tenants/${tenant}/tasks?x=1`,
       headers: {
+        origin: "http://localhost",
         "content-type": "application/json",
         "idempotency-key": "key-1",
         "if-match": '"6"',
@@ -98,34 +103,6 @@ describe("proxy", () => {
     expect(request.headers["idempotency-key"]).toBe("key-1");
     expect(request.headers["if-match"]).toBe('"6"');
     expect(request.headers.cookie).toBeUndefined();
-  });
-
-  it.each(["cross-site", "same-site"])("refuses a %s browser request", async (site) => {
-    current = await app();
-    const response = await current.inject({
-      method: "POST",
-      url: `/api/v1/tenants/${tenant}/tasks`,
-      headers: { "sec-fetch-site": site, "content-type": "text/plain" },
-      payload: "{}",
-    });
-    expect(response.statusCode).toBe(403);
-    expect(response.headers["content-type"]).toContain("application/problem+json");
-    expect(seen).toHaveLength(0);
-  });
-
-  it("passes a same-origin browser request", async () => {
-    respond = (_req, res) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end("{}");
-    };
-    current = await app();
-    const response = await current.inject({
-      method: "GET",
-      url: `/api/v1/tenants/${tenant}/attention`,
-      headers: { "sec-fetch-site": "same-origin" },
-    });
-    expect(response.statusCode).toBe(200);
-    expect(seen).toHaveLength(1);
   });
 
   it("passes a problem document through unchanged", async () => {
@@ -167,10 +144,13 @@ describe("proxy", () => {
       await current.listen({ host: "127.0.0.1", port: 0 });
       const { port } = current.server.address() as AddressInfo;
       const status = await new Promise<number | undefined>((resolve, reject) => {
-        request({ host: "127.0.0.1", port, path, method: "GET" }, (res) => {
-          res.resume();
-          resolve(res.statusCode);
-        })
+        request(
+          { host: "127.0.0.1", port, path, method: "GET", headers: { host: "localhost:80" } },
+          (res) => {
+            res.resume();
+            resolve(res.statusCode);
+          },
+        )
           .on("error", reject)
           .end();
       });
@@ -201,6 +181,7 @@ describe("proxy", () => {
       tenant,
       tokens: tokens(),
       fetch,
+      allowedHosts,
     });
     const response = await current.inject({
       method: "GET",
@@ -224,10 +205,15 @@ describe("proxy", () => {
     await current.listen({ host: "127.0.0.1", port: 0 });
     const { port } = current.server.address() as AddressInfo;
 
+    // The browser addresses the server as localhost, an allowed host; the
+    // connection goes to the test's port.
     const browser = new AbortController();
-    const response = await fetch(`http://127.0.0.1:${port}/api/v1/tenants/${tenant}/events`, {
+    const response = await undiciFetch(`http://localhost/api/v1/tenants/${tenant}/events`, {
       headers: { accept: "text/event-stream", "last-event-id": "c0" },
       signal: browser.signal,
+      dispatcher: createDispatcher({
+        connectTo: new Map([["localhost:80", { host: "127.0.0.1", port }]]),
+      }),
     });
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/event-stream");

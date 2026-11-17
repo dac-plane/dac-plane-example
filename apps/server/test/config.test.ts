@@ -24,6 +24,17 @@ describe("loadConfig", () => {
     expect(config.scope).toBe("dac-plane-surface");
     expect(config.port).toBe(3000);
     expect(config.host).toBe("127.0.0.1");
+    expect(config.allowedHosts).toEqual(["127.0.0.1:3000", "localhost:3000"]);
+  });
+
+  it("follows PORT for the default hosts and reads ALLOWED_HOSTS", () => {
+    expect(loadConfig({ ...env, PORT: "4000" }).allowedHosts).toEqual([
+      "127.0.0.1:4000",
+      "localhost:4000",
+    ]);
+    expect(
+      loadConfig({ ...env, ALLOWED_HOSTS: " Example.test:8080 ,localhost:5173" }).allowedHosts,
+    ).toEqual(["example.test:8080", "localhost:5173"]);
   });
 
   it.each([
@@ -36,6 +47,12 @@ describe("loadConfig", () => {
     ],
     ["a missing secret file", { DAC_CLIENT_SECRET_FILE: join(dir, "absent") }, "ENOENT"],
     ["a relative web root", { WEB_ROOT: "apps/web/dist" }, "WEB_ROOT must be an absolute path"],
+    ["an allowed host without a port", { ALLOWED_HOSTS: "localhost" }, "is not host:port"],
+    [
+      "an allowed host with a scheme",
+      { ALLOWED_HOSTS: "http://localhost:3000" },
+      "is not host:port",
+    ],
   ])("refuses %s", (_name, override, message) => {
     expect(() => loadConfig({ ...env, ...override })).toThrow(message);
   });

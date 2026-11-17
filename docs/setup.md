@@ -74,7 +74,9 @@ just down                     # stop everything, keeping its data
 in dac-plane's [operate guide](https://dac-plane.github.io/dac-plane/operate/).
 
 Only the application (`127.0.0.1:3000`), the Surface API and Keycloak are published, all on loopback. To change the
-application's address, set `DAC_EXAMPLE_BIND` and `DAC_EXAMPLE_PORT` in `pilot.env`.
+application's address, set `DAC_EXAMPLE_BIND` and `DAC_EXAMPLE_PORT` in `pilot.env`. The application's API answers
+only requests addressed to that address or `localhost` on the same port, and only from its own pages; if browsers reach
+it by another name, list every `host:port` they use in `DAC_EXAMPLE_ALLOWED_HOSTS`.
 
 ## When something fails
 
@@ -86,3 +88,6 @@ application's address, set `DAC_EXAMPLE_BIND` and `DAC_EXAMPLE_PORT` in `pilot.e
 - **The application shows a problem from dac-plane:** its status, title and detail are dac-plane's own; the
   application does not retry or hide them. `just stack logs dac-plane` shows the other side.
 - **`/readyz` answers 503:** the application has no token or dac-plane does not answer for the tenant.
+- **The API answers 403 "does not answer for that host":** the browser reached the application by an address missing
+  from `DAC_EXAMPLE_ALLOWED_HOSTS`. A script calling the API sends `Origin` with each change, for example
+  `-H "Origin: http://127.0.0.1:3000"` with curl.

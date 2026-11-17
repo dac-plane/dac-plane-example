@@ -30,6 +30,8 @@ export interface Config {
   defaults: { runtimeProviderID?: string; environmentProviderID?: string };
   /** The built web app's directory, served beside the API; unset in development, where Vite serves it. */
   webRoot?: string;
+  /** The `host:port` authorities browsers reach this server by; /api answers no other. */
+  allowedHosts: string[];
 }
 
 type Env = Record<string, string | undefined>;
@@ -113,6 +115,24 @@ function readSecret(env: Env, name: string): string {
 const withValue = <K extends string>(key: K, value: string | undefined) =>
   value === undefined ? {} : ({ [key]: value } as Record<K, string>);
 
+// parseAllowedHosts reads `127.0.0.1:3000,localhost:3000`. Each entry names
+// a port, so a page on the same host but another port is not this server.
+export function parseAllowedHosts(raw: string): string[] {
+  const hosts = raw
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  for (const host of hosts) {
+    if (!/^[a-z0-9.-]+:\d+$|^\[[0-9a-f:]+\]:\d+$/.test(host)) {
+      throw new Error(`ALLOWED_HOSTS entry is not host:port: ${host}`);
+    }
+  }
+  if (hosts.length === 0) {
+    throw new Error("ALLOWED_HOSTS names no host");
+  }
+  return hosts;
+}
+
 export function loadConfig(env: Env = process.env): Config {
   const tenant = required(env, "DAC_TENANT");
   if (!uuid.test(tenant)) {
@@ -123,9 +143,10 @@ export function loadConfig(env: Env = process.env): Config {
   if (webRoot && !isAbsolute(webRoot)) {
     throw new Error("WEB_ROOT must be an absolute path");
   }
+  const listenPort = port(env.PORT?.trim() || "3000", "PORT");
   return {
     host: env.HOST?.trim() || "127.0.0.1",
-    port: port(env.PORT?.trim() || "3000", "PORT"),
+    port: listenPort,
     surfaceURL: httpsURL(env, "DAC_SURFACE_URL"),
     tenant,
     tokenURL: httpsURL(env, "DAC_TOKEN_URL"),
@@ -139,5 +160,8 @@ export function loadConfig(env: Env = process.env): Config {
       ...withValue("environmentProviderID", optionalUUID(env, "DAC_ENVIRONMENT_PROVIDER_ID")),
     },
     ...(webRoot ? { webRoot } : {}),
+    allowedHosts: parseAllowedHosts(
+      env.ALLOWED_HOSTS?.trim() || `127.0.0.1:${listenPort},localhost:${listenPort}`,
+    ),
   };
 }

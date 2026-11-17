@@ -17,6 +17,7 @@ const app = await buildApp({
   tenant: config.tenant,
   defaults: config.defaults,
   ...(config.webRoot ? { webRoot: config.webRoot } : {}),
+  allowedHosts: config.allowedHosts,
   fetch,
   tokens: new ClientCredentials({
     tokenURL: config.tokenURL,

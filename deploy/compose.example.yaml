@@ -22,6 +22,9 @@ services:
       DAC_CLIENT_ID: pilot-owner
       DAC_CLIENT_SECRET_FILE: /run/secrets/client_secret
       DAC_CA_FILE: /run/config/ca.crt
+      # The addresses browsers use to reach the application; /api answers no
+      # other Host, which keeps a rebound DNS name out.
+      ALLOWED_HOSTS: ${DAC_EXAMPLE_ALLOWED_HOSTS:-${DAC_EXAMPLE_BIND:-127.0.0.1}:${DAC_EXAMPLE_PORT:-3000},localhost:${DAC_EXAMPLE_PORT:-3000}}
     secrets:
       - source: example_client_secret
         target: client_secret

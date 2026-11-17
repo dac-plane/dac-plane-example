@@ -1,5 +1,6 @@
 import { createSurfaceClient } from "@dac-plane-example/surface-client";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
+import { registerGuard } from "./guard.ts";
 import { registerProxy } from "./proxy.ts";
 import type { Fetch, TokenSource } from "./token.ts";
 import { registerWeb } from "./web.ts";
@@ -12,6 +13,8 @@ export interface AppOptions {
   defaults?: { runtimeProviderID?: string; environmentProviderID?: string };
   /** The built web app, served beside the API when set. */
   webRoot?: string;
+  /** The `host:port` authorities browsers reach this server by; /api answers no other. */
+  allowedHosts: readonly string[];
   server?: FastifyServerOptions;
 }
 
@@ -19,6 +22,7 @@ export interface AppOptions {
 // with inject() and main.ts owns the listening socket and the signals.
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify(options.server ?? {});
+  registerGuard(app, options.allowedHosts);
 
   // Liveness: the process answers.
   app.get("/healthz", async () => ({ status: "ok" }));
