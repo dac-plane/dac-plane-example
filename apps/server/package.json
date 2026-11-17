@@ -1,0 +1,17 @@
+{
+  "name": "@dac-plane-example/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/main.ts",
+    "start": "node src/main.ts",
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "fastify": "^5.12.0"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.0"
+  }
+}
