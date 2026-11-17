@@ -62,6 +62,15 @@ describe("the /api guard", () => {
     expect(response.statusCode).toBe(403);
   });
 
+  it("guards the route the router matched, however its path is encoded", async () => {
+    // The router decodes %61 to "a", so this reaches /api/config.
+    for (const url of ["/%61pi/config", `/%61pi/v1/tenants/${tenant}/tasks`]) {
+      const { response, relayed } = await call("GET", url, { host: "attacker.example:3000" });
+      expect(response.statusCode, url).toBe(403);
+      expect(relayed).toBe(false);
+    }
+  });
+
   it.each(["cross-site", "same-site"])("refuses a %s browser request", async (site) => {
     const { response, relayed } = await call("POST", tasks, {
       "sec-fetch-site": site,

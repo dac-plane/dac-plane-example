@@ -42,12 +42,22 @@ function hostAuthority(host: string): string {
   return /:\d+$/.test(value) ? value : `${value}:80`;
 }
 
+const isApi = (path: string) => path === "/api" || path.startsWith("/api/");
+
+// underApi decides by the route the router matched, which is what runs: the
+// router decodes the path (`/%61pi/config` matches `/api/config`), so the raw
+// URL alone is not enough. The raw prefix is checked too, for requests that
+// match no route.
+function underApi(request: FastifyRequest): boolean {
+  const route = request.routeOptions.url;
+  return (route !== undefined && isApi(route)) || isApi(request.url.split("?")[0] ?? "");
+}
+
 export function registerGuard(app: FastifyInstance, allowedHosts: readonly string[]): void {
   const allowed = new Set(allowedHosts.map(hostAuthority));
 
   app.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
-    const path = request.url.split("?")[0] ?? "";
-    if (path !== "/api" && !path.startsWith("/api/")) return;
+    if (!underApi(request)) return;
 
     const host = request.headers.host;
     if (!host || !allowed.has(hostAuthority(host))) {
