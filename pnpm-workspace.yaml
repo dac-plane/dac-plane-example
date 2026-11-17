@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - packages/*
 
 # Resolve only versions published at least a week ago, so a compromised
 # release has time to be found and pulled before it reaches this lockfile.
