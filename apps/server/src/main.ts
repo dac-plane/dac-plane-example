@@ -1,9 +1,32 @@
+import { setGlobalDispatcher } from "undici";
 import { buildApp } from "./app.ts";
+import { loadConfig } from "./config.ts";
+import { createDispatcher } from "./dispatcher.ts";
+import { ClientCredentials } from "./token.ts";
 
-const host = process.env.HOST ?? "127.0.0.1";
-const port = Number(process.env.PORT ?? "3000");
+const config = loadConfig();
+// Every outgoing request goes to dac-plane or its issuer, so the agent that
+// carries the deployment's CA and address mapping is the process-wide
+// dispatcher, which Node's fetch uses.
+setGlobalDispatcher(
+  createDispatcher({ ...(config.ca ? { ca: config.ca } : {}), connectTo: config.connectTo }),
+);
 
-const app = buildApp({ logger: true });
+const app = await buildApp({
+  surfaceURL: config.surfaceURL,
+  tenant: config.tenant,
+  fetch,
+  tokens: new ClientCredentials({
+    tokenURL: config.tokenURL,
+    clientID: config.clientID,
+    clientSecret: config.clientSecret,
+    scope: config.scope,
+    fetch,
+  }),
+  server: {
+    logger: { redact: ["req.headers.authorization", "req.headers.cookie"] },
+  },
+});
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
@@ -17,4 +40,4 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
-await app.listen({ host, port });
+await app.listen({ host: config.host, port: config.port });

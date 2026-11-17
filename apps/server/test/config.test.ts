@@ -1,0 +1,53 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { loadConfig, parseConnectTo } from "../src/config.ts";
+
+const dir = mkdtempSync(join(tmpdir(), "config-test-"));
+const secretFile = join(dir, "secret");
+writeFileSync(secretFile, "s3cret\n");
+
+const env = {
+  DAC_SURFACE_URL: "https://dac-plane:8443",
+  DAC_TENANT: "01a167fd-51d9-76ba-b563-496e2bd89646",
+  DAC_TOKEN_URL: "https://issuer:8443/default/token",
+  DAC_CLIENT_ID: "surface-owner",
+  DAC_CLIENT_SECRET_FILE: secretFile,
+};
+
+describe("loadConfig", () => {
+  it("reads the configuration and the secret from its file", () => {
+    const config = loadConfig(env);
+    expect(config.surfaceURL.href).toBe("https://dac-plane:8443/");
+    expect(config.clientSecret).toBe("s3cret");
+    expect(config.scope).toBe("dac-plane-surface");
+    expect(config.port).toBe(3000);
+    expect(config.host).toBe("127.0.0.1");
+  });
+
+  it.each([
+    ["a missing tenant", { DAC_TENANT: "" }, "DAC_TENANT is required"],
+    ["a tenant that is not a UUID", { DAC_TENANT: "acme" }, "DAC_TENANT must be a UUID"],
+    [
+      "a plain-HTTP Surface API",
+      { DAC_SURFACE_URL: "http://dac-plane:8443" },
+      "must be an https URL",
+    ],
+    ["a missing secret file", { DAC_CLIENT_SECRET_FILE: join(dir, "absent") }, "ENOENT"],
+  ])("refuses %s", (_name, override, message) => {
+    expect(() => loadConfig({ ...env, ...override })).toThrow(message);
+  });
+});
+
+describe("parseConnectTo", () => {
+  it("maps origins to the addresses dialled", () => {
+    const map = parseConnectTo("issuer:8443=127.0.0.1:18080, dac-plane:8443=127.0.0.1:18443");
+    expect(map.get("issuer:8443")).toEqual({ host: "127.0.0.1", port: 18080 });
+    expect(map.get("dac-plane:8443")).toEqual({ host: "127.0.0.1", port: 18443 });
+  });
+
+  it("refuses a malformed entry", () => {
+    expect(() => parseConnectTo("dac-plane=127.0.0.1")).toThrow("host:port=address:port");
+  });
+});
